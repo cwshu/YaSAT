@@ -8,6 +8,7 @@
 #include <iostream>
 using std::ifstream;
 //#include <zlib.h>
+#include <cstdio>
 #include <cstdlib>
 
 //=====================================================================

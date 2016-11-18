@@ -2,13 +2,15 @@
 
 # Debugging flags
 #FLAGS=-Wall -Wold-style-cast -Wformat=2 -ansi -pedantic -ggdb3 \
--DDEBUG
+-DDEBUG \
+-std=c++11
 
 # Optimizing flags
-FLAGS=-Wall -Wold-style-cast -Wformat=2 -ansi -pedantic -O3
+FLAGS=-Wall -Wold-style-cast -Wformat=2 -ansi -pedantic -O3 \
+-std=c++11
 
 # List all the .o files you need to build here
-OBJS=parser.o sat.o
+OBJS=parser.o sat.o sat_solver.o
 
 # This is the name of the executable file that gets built.  Please
 # don't change it.
