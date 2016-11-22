@@ -1,12 +1,14 @@
 # A template C++ Makefile for your SAT solver.
 
+CXX=clang++
+
 # Debugging flags
-#FLAGS=-Wall -Wold-style-cast -Wformat=2 -ansi -pedantic -ggdb3 \
+FLAGS=-Wall -Wold-style-cast -Wformat=2 -pedantic -ggdb3 \
 -DDEBUG \
 -std=c++11
 
 # Optimizing flags
-FLAGS=-Wall -Wold-style-cast -Wformat=2 -ansi -pedantic -O3 \
+#FLAGS=-Wall -Wold-style-cast -Wformat=2 -pedantic -O3 \
 -std=c++11
 
 # List all the .o files you need to build here
@@ -18,14 +20,16 @@ EXENAME=yasat
 
 # Compile targets
 all: $(OBJS)
-	g++ $(FLAGS) $(OBJS) -lz -o $(EXENAME)
+	$(CXX) $(FLAGS) $(OBJS) -lz -o $(EXENAME)
 parser.o: parser.cpp parser.h
-	g++ $(FLAGS) -c parser.cpp
+	$(CXX) $(FLAGS) -c parser.cpp
 sat.o: sat.cpp parser.h
-	g++ $(FLAGS) -c sat.cpp
+	$(CXX) $(FLAGS) -c sat.cpp
 
 # Add more compilation targets here
 
+%.o: %.cpp
+	$(CXX) $(FLAGS) -c $^
 
 
 # The "phony" `clean' compilation target.  Type `make clean' to remove
