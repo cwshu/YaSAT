@@ -33,7 +33,7 @@ enum class BoolVal {
     FALSE,
 };
 
-BoolVal to_bool_val(bool value){
+static BoolVal to_bool_val(bool value){
     if( value == true ) return BoolVal::TRUE;
     return BoolVal::FALSE;
 }
@@ -66,9 +66,12 @@ struct WatchedLiteral {
 struct LiteralDecideNode {
     int lit_number;
     bool value;
-    int bt_state; 
+    int bt_state; // backtrack state
         // state 0 -> invert value and state 1
         // state 1 -> pop LiteralDecideNode;
+    LiteralDecideNode() : lit_number(-1) {}
+    LiteralDecideNode(int lit_number, bool value, int bt_state) : 
+      lit_number(lit_number), value(value), bt_state(bt_state) {}
 };
 
 class SatSolver {
@@ -116,8 +119,8 @@ public:
     std::vector<Clause> all_clauses;
 
     // internal data
-    std::vector<WatchedLiteral> literals;
-    std::vector<bool> sat_clauses;
+    std::vector<WatchedLiteral> literals; // literal use 1-based array
+    std::vector<bool> sat_clauses;        // clause  use 0-based array
     std::vector<LiteralIndexPair> clause_watched_2_lit;
 
     // backtrack

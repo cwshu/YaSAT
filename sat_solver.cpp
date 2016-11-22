@@ -41,7 +41,7 @@ void SatSolver::add_2_lit_watch_each_clause(){
     int clause_size = all_clauses.size();
     for( int clause_index = 0; clause_index < clause_size; clause_index++ ){
         Clause& clause = all_clauses[clause_index];
-        std::assert(clause.size() <= 2);
+        assert(clause.size() >= 2);
         
         add_literal_watch(clause_index, 0, 0);
         add_literal_watch(clause_index, 1, 1);
@@ -281,7 +281,7 @@ void SatSolver::clear_and_resize(){
     clause_watched_2_lit.clear();
 
     int clause_size = all_clauses.size();
-    literals.resize(max_var_index);
+    literals.resize(max_var_index + 1);
     sat_clauses.resize(clause_size, false);
     clause_watched_2_lit.resize(clause_size);
 }
@@ -332,11 +332,8 @@ void SatSolver::remove_literal_watch(LiteralIndex literal){
     // only remove pos/neg_watched in literals, not remove in clause_watched_2_lit
     bool is_positive = all_clauses[literal.clause_index][literal.lit_index_in_clause] > 0;
 
-    std::vector<LiteralIndex>& watched;
-    if( is_positive ){
-        watched = literals[literal.lit_number].pos_watched;
-    }
-    else{
+    std::vector<LiteralIndex>& watched = literals[literal.lit_number].pos_watched;
+    if( !is_positive ){
         watched = literals[literal.lit_number].neg_watched;
     }
 
@@ -362,7 +359,7 @@ void SatSolver::give_literal_value_for_clause_true(int clause_index, int lit_ind
 // backtrack
 void SatSolver::backtrack_init(){
     backtrack_level = 0;
-    decide_literals.clear();
+    decision_literals.clear();
     unit_clause_queue.clear();
     backtrack_data.clear();
 }
@@ -377,7 +374,7 @@ bool SatSolver::backtrack_next(){
         unit_clause_queue.clear();
 
         // only init decision_literal and bt level
-        last_decision_lit.state = 1;
+        last_decision_lit.bt_state = 1;
         last_decision_lit.value = ~ last_decision_lit.value;
     }
     else if( last_decision_lit.bt_state == 1 ){
