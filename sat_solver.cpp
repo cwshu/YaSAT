@@ -20,6 +20,7 @@ void SatSolver::set_clauses(const std::vector<Clause>& clauses, int max_var_inde
 bool SatSolver::solve(){
     remove_unit_clause_init();
     add_2_lit_watch_each_clause();
+
     bool is_sat = make_decision();
     return is_sat;
 }
@@ -39,10 +40,11 @@ void SatSolver::remove_unit_clause_init(){
     int clause_size = all_clauses.size();
     for( int i = 0; i < clause_size; i++ ){
         Clause& this_clause = all_clauses[i];
+
         if( this_clause.size() == 1 ){
             // unit clause
             give_literal_value_for_clause_true(i, 0);
-            sat_clauses[i] = true;
+            // sat_clauses[i] = true; just remove clause
             continue;
         }
         
@@ -78,15 +80,20 @@ bool SatSolver::make_decision(){
         // backtracking by loop
 
         if( find_next ){
-            int next_lit = search_next_lit(lit_counter);
+            lit_counter = search_next_lit(lit_counter);
 
-            if( literals[next_lit].value != BoolVal::NOT_ASSIGNED ){
-                continue;
+            if( lit_counter > max_var_index ){
+                break;
             }
 
+            if( literals[lit_counter].value != BoolVal::NOT_ASSIGNED ){
+                continue;
+            }
+            
             // only init decision_literal and bt level
             backtrack_level += 1;
-            decision_literals.emplace_back(next_lit, true, 0);
+            backtrack_data.push_back(BT());
+            decision_literals.emplace_back(lit_counter, true, 0);
         }
 
         SatRetValue ret = imply_by(decision_literals.back().lit_number, decision_literals.back().value);
@@ -103,6 +110,7 @@ bool SatSolver::make_decision(){
                 return false;
             }
 
+            lit_counter = decision_literals.back().lit_number;
             find_next = false;
             continue;
         }
@@ -130,21 +138,6 @@ SatRetValue SatSolver::imply_by(int lit_num, bool set_value){
     // while !unit_clause_queue.empty()
        // imply_by(unit_clause_queue.pop_front())
 
-    // find_watched_literal_in_clause():
-       // [Define] T = True, F = False, N = Not Assigned
-       // [Define] (T, F) means another lit = T && current lit = F
-       
-       // if (T,  )    => return;
-       // while
-          // pick next literal in clause
-          // if ( , T) => return;
-          // if (N, N) => set_watched_literal(literal);
-          // if ( , F) => continue;
-
-       // if last one literal // (, F)
-          // if (N, F) => unit_clause_queue.push_back(literal);
-          // if (F, F) => conflict();
-
     /*
      * 4 condition of each clause
      * 
@@ -157,11 +150,13 @@ SatRetValue SatSolver::imply_by(int lit_num, bool set_value){
     bt_set_literal_value(lit_num, set_value);
     if( set_value == true ){
         for( const auto& pos_lit_clause: literals[lit_num].pos_watched ){
-            bt_set_clause_sat(pos_lit_clause.clause_index);
+            if( sat_clauses[pos_lit_clause.clause_index] == false ){
+                bt_set_clause_sat(pos_lit_clause.clause_index);
+            }
         }
 
         int size = literals[lit_num].neg_watched.size();
-        for( int i = 0; i < size; ){
+        for( int i = 0; i < size; i++ ){
             // each negative watched literal's clause
             LiteralIndex& neg_lit_index = literals[lit_num].neg_watched[i];
             SatRetValue ret = update_literal_row(neg_lit_index);
@@ -172,12 +167,12 @@ SatRetValue SatSolver::imply_by(int lit_num, bool set_value){
             else if( ret == SatRetValue::UNIT_CLAUSE ){
                 int clause_index = neg_lit_index.clause_index;
 
-                LiteralIndex unit_clause_lit_index = clause_watched_2_lit[clause_index][0];
-                if( literal_truth_in_clause(unit_clause_lit_index) != BoolVal::NOT_ASSIGNED ){
-                    unit_clause_lit_index = clause_watched_2_lit[clause_index][1];
+                LiteralIndex unit_clause_index = clause_watched_2_lit[clause_index][0];
+                if( literal_truth_in_clause(unit_clause_index) != BoolVal::NOT_ASSIGNED ){
+                    unit_clause_index = clause_watched_2_lit[clause_index][1];
                 }
 
-                unit_clause_queue.push_back(unit_clause_lit_index);
+                unit_clause_queue.push_back(unit_clause_index);
             }
         }
     }
@@ -187,7 +182,9 @@ SatRetValue SatSolver::imply_by(int lit_num, bool set_value){
         }
 
         int size = literals[lit_num].pos_watched.size();
-        for( int i = 0; i < size; ){
+        for( int i = 0; i < size; i++ ){
+            // TODO: fix size and i when pos_watched array elements are removed in literal updating.
+
             // each positive watched literal's clause
             LiteralIndex& pos_lit_index = literals[lit_num].pos_watched[i];
             SatRetValue ret = update_literal_row(pos_lit_index);
@@ -236,6 +233,22 @@ SatRetValue SatSolver::update_literal_row(LiteralIndex literal){
 }
 
 SatRetValue SatSolver::update_literal(int clause_index, int clause_2_lit_offset){
+
+    // find_watched_literal_in_clause():
+       // [Define] T = True, F = False, N = Not Assigned
+       // [Define] (T, F) means another lit = T && current lit = F
+       
+       // if (T,  )    => return;
+       // while
+          // pick next literal in clause
+          // if ( , T) => return;
+          // if (N, N) => set_watched_literal(literal);
+          // if ( , F) => continue;
+
+       // if last one literal // (, F)
+          // if (N, F) => unit_clause_queue.push_back(literal);
+          // if (F, F) => conflict();
+
     LiteralIndex& literal = clause_watched_2_lit[clause_index][clause_2_lit_offset];
     LiteralIndex& another_watched_lit = clause_watched_2_lit[literal.clause_index][1 - clause_2_lit_offset];
 
@@ -249,12 +262,13 @@ SatRetValue SatSolver::update_literal(int clause_index, int clause_2_lit_offset)
     std::vector<int>& this_clause = all_clauses[clause_index];
     int size = this_clause.size();
 
-    int lit_index;
+    int lit_index, last_false_lit_index = -1;
     for( lit_index = 0; lit_index < size; lit_index++ ){
         if( lit_index == literal.lit_index_in_clause ) continue;
         if( lit_index == another_watched_lit.lit_index_in_clause ) continue;
 
         if( literal_truth_in_clause(clause_index, lit_index) == BoolVal::FALSE ){
+            last_false_lit_index = lit_index;
             continue;
         }
         else if( literal_truth_in_clause(clause_index, lit_index) == BoolVal::TRUE ){
@@ -270,19 +284,20 @@ SatRetValue SatSolver::update_literal(int clause_index, int clause_2_lit_offset)
             return SatRetValue::NORMAL;
         }
     }
+    
+    if( last_false_lit_index != -1 ){
+        // move literal to end;
+        remove_literal_watch(literal);
+        add_literal_watch(clause_index, last_false_lit_index, clause_2_lit_offset);
+    }
 
-    // move literal to end;
-    remove_literal_watch(literal);
-    add_literal_watch(clause_index, lit_index, clause_2_lit_offset);
-    if( lit_index == size ){
-        if( literal_truth_in_clause(another_watched_lit) == BoolVal::NOT_ASSIGNED ){
-            // unit clause
-            return SatRetValue::UNIT_CLAUSE;
-        }
-        else if( literal_truth_in_clause(another_watched_lit) == BoolVal::FALSE ){
-            // conflict
-            return SatRetValue::CONFLICT;
-        }
+    if( literal_truth_in_clause(another_watched_lit) == BoolVal::NOT_ASSIGNED ){
+        // unit clause
+        return SatRetValue::UNIT_CLAUSE;
+    }
+    else if( literal_truth_in_clause(another_watched_lit) == BoolVal::FALSE ){
+        // conflict
+        return SatRetValue::CONFLICT;
     }
 }
 
@@ -296,6 +311,7 @@ void SatSolver::clear_and_resize(){
     literals.clear();
     sat_clauses.clear();
     clause_watched_2_lit.clear();
+    backtrack_init();
 
     int clause_size = all_clauses.size();
     literals.resize(max_var_index + 1);
@@ -354,6 +370,7 @@ void SatSolver::remove_literal_watch(LiteralIndex literal){
         watched = literals[literal.lit_number].neg_watched;
     }
 
+    // TODO: choose better data structure to improve remove literal performance
     for( auto it = watched.begin(); it != watched.end(); it++ ){
         if( *it == literal ){
             watched.erase(it);
