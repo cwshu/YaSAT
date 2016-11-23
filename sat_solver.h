@@ -82,6 +82,11 @@ struct LiteralDecideNode {
 class SatSolver {
 public:
 
+    // debug use
+    
+    void print_clause_watched_2_lit();
+    void print_literals();
+    
     // APIs
 
     void set_clauses(const std::vector<Clause>& clauses, int max_var_index);
