@@ -434,7 +434,8 @@ bool SatSolver::backtrack_next(){
     }
     else if( last_decision_lit.bt_state == 1 ){
         backtrack_pop();
-        backtrack_next();
+
+        return backtrack_next();
     }
 
     return true;

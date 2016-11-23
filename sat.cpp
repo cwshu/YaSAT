@@ -49,8 +49,12 @@ int main(int argc, char *argv[]){
                 output_stream << "-" << i + 1 << " ";
             }
             else{
-                // error, not assigned literal
+                // not assigned literal: [don't care condition or error?]
+#ifdef DEBUG
                 output_stream << "@" << i + 1 << " ";
+#else
+                output_stream << i + 1 << " ";
+#endif
             }
             // output_stream << i + 1 << ": " << answer[i] << std::endl;
         }

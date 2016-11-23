@@ -1,6 +1,6 @@
 # A template C++ Makefile for your SAT solver.
 
-CXX=clang++
+CXX=g++
 
 # Debugging flags
 FLAGS=-Wall -Wold-style-cast -Wformat=2 -pedantic -ggdb3 \
