@@ -4,6 +4,7 @@
 #include <vector>
 #include <array>
 #include <deque>
+#include <ostream>
 
 // 2 literal watching
 
@@ -31,7 +32,10 @@ enum class BoolVal {
     NOT_ASSIGNED,
     TRUE,
     FALSE,
+
 };
+
+std::ostream& operator << (std::ostream& os, const BoolVal& value);
 
 static BoolVal to_bool_val(bool value){
     if( value == true ) return BoolVal::TRUE;
@@ -61,6 +65,7 @@ struct WatchedLiteral {
     BoolVal value;
     std::vector<LiteralIndex> pos_watched;
     std::vector<LiteralIndex> neg_watched;
+
 };
 
 struct LiteralDecideNode {
@@ -78,9 +83,10 @@ class SatSolver {
 public:
 
     // APIs
+
     void set_clauses(const std::vector<Clause>& clauses, int max_var_index);
     bool solve();
-    // std::vector<bool>& answer() const;
+    std::vector<BoolVal> answer() const;
 
     void remove_unit_clause_init();
     void add_2_lit_watch_each_clause();
@@ -93,6 +99,7 @@ public:
     SatRetValue update_literal(int clause_index, int clause_2_lit_offset);
 
     // helper functions of internal data
+    
     int search_next_lit(int lit_counter);
     // add_new_clause();
     void clear_and_resize();

@@ -3,6 +3,14 @@
 #include "sat_solver.h"
 #include "utils.h"
 
+std::ostream& operator << (std::ostream& os, const BoolVal& value){
+    if( value == BoolVal::TRUE )        { os << "true"; }
+    if( value == BoolVal::FALSE )       { os << "false"; }
+    if( value == BoolVal::NOT_ASSIGNED ){ os << "not assigned"; }
+    return os;
+}
+
+// SatSolver
 void SatSolver::set_clauses(const std::vector<Clause>& clauses, int max_var_index){
     all_clauses = clauses;
     this->max_var_index = max_var_index;
@@ -15,6 +23,15 @@ bool SatSolver::solve(){
     bool is_sat = make_decision();
     return is_sat;
 }
+
+std::vector<BoolVal> SatSolver::answer() const {
+    std::vector<BoolVal> ret;
+    for(int i = 1; i <= max_var_index; i++){
+        ret.push_back(literals[i].value);
+    }
+    return ret;
+}
+
 
 void SatSolver::remove_unit_clause_init(){
     std::vector<Clause> copy_clauses;
