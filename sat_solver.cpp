@@ -225,9 +225,17 @@ SatRetValue SatSolver::imply_by(int lit_num, bool set_value){
         LiteralIndex lit = unit_clause_queue.front();
         unit_clause_queue.pop_front();
 
-        // if literal is ASSIGNED by previous unit clause, then drop it.
         if( literals[lit.lit_number].value != BoolVal::NOT_ASSIGNED ){
-            continue;
+            // if literal is ASSIGNED by previous unit clause:
+            
+            if( literal_truth_in_clause(lit) == BoolVal::TRUE ){
+                // if assigned literal cause a truth clause, then drop it.
+                continue;
+            }
+            else{
+                // else, it's conflict.
+                return SatRetValue::CONFLICT;
+            }
         }
 
         return imply_by(lit);
