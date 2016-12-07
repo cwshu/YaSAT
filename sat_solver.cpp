@@ -21,7 +21,7 @@ bool SatSolver::solve(){
     remove_unit_clause_init();
     add_2_lit_watch_each_clause();
 
-    bool is_sat = make_decision();
+    bool is_sat = DPLL_backtrack();
     return is_sat;
 }
 
@@ -67,11 +67,8 @@ void SatSolver::add_2_lit_watch_each_clause(){
     }
 }
 
-bool SatSolver::make_decision(){
-    // 2. make decision for each clause
-
-    // vector<bool> accept_clauses;
-    // accept_clauses.resize(clauses.size(), false);
+bool SatSolver::DPLL_backtrack(){
+    // backtracking for each clause
 
     bool find_next = true;
     int lit_counter = 0;
@@ -209,6 +206,9 @@ SatRetValue SatSolver::imply_by(int lit_num, bool set_value){
                 return ret;
             }
             else if( ret == SatRetValue::UNIT_CLAUSE ){
+                // TODO: clear logic
+                // [default] unit_clause literal index = positive literal index
+                // [if positive literal index isn't NOT_ASSIGNED] unit_clause literal index = another watched literal in clause
                 int clause_index = pos_lit_index.clause_index;
 
                 LiteralIndex unit_clause_lit_index = clause_watched_2_lit[clause_index][0];
@@ -221,9 +221,15 @@ SatRetValue SatSolver::imply_by(int lit_num, bool set_value){
         }
     }
     
-    if( !unit_clause_queue.empty() ){
+    while( !unit_clause_queue.empty() ){
         LiteralIndex lit = unit_clause_queue.front();
         unit_clause_queue.pop_front();
+
+        // if literal is ASSIGNED by previous unit clause, then drop it.
+        if( literals[lit.lit_number].value != BoolVal::NOT_ASSIGNED ){
+            continue;
+        }
+
         return imply_by(lit);
     }
 
@@ -245,6 +251,10 @@ SatRetValue SatSolver::update_literal_row(LiteralIndex literal){
     }
     else if( ret == SatRetValue::UNIT_CLAUSE ){
         return ret;
+    }
+    else{
+        assert("unreachable: update_literal_row\n");
+        return SatRetValue::NORMAL;
     }
 }
 
@@ -314,6 +324,10 @@ SatRetValue SatSolver::update_literal(int clause_index, int clause_2_lit_offset)
     else if( literal_truth_in_clause(another_watched_lit) == BoolVal::FALSE ){
         // conflict
         return SatRetValue::CONFLICT;
+    }
+    else{
+        assert("unreachable: update_literal\n");
+        return SatRetValue::NORMAL;
     }
 }
 

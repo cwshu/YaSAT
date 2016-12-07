@@ -95,7 +95,7 @@ public:
 
     void remove_unit_clause_init();
     void add_2_lit_watch_each_clause();
-    bool make_decision();
+    bool DPLL_backtrack();
     SatRetValue imply_by(LiteralIndex lit_index);
     SatRetValue imply_by(int lit_num, bool set_value);
     // conflict();
