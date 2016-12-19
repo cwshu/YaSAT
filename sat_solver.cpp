@@ -1,4 +1,5 @@
 #include <cassert>
+#include <iostream>
 
 #include "sat_solver.h"
 #include "utils.h"
@@ -93,13 +94,21 @@ bool SatSolver::DPLL_backtrack(){
             decision_literals.emplace_back(lit_counter, true, 0);
         }
 
+#ifdef DEBUG2
+    std::cerr << "[decide] x" << decision_literals.back().lit_number 
+              << " = " << decision_literals.back().value << std::endl;
+#endif
         SatRetValue ret = imply_by(decision_literals.back().lit_number, decision_literals.back().value);
 
-        if( ret == SatRetValue::NORMAL ){
+        if( ret.type == SatRetValue::NORMAL ){
             find_next = true;
             continue;
         }
-        else if( ret == SatRetValue::CONFLICT ){
+        else if( ret.type == SatRetValue::CONFLICT ){
+
+#ifdef DEBUG2
+    std::cerr << "[conflict] " << ret.conflict_lit << std::endl;
+#endif
             bool has_next = backtrack_next();
 
             if( !has_next ){
@@ -142,7 +151,7 @@ SatRetValue SatSolver::imply_by(int lit_num, bool set_value){
         set_watched_literals_true(literals[lit_num].pos_watched);
         SatRetValue ret = set_watched_literals_false(literals[lit_num].neg_watched);
 
-        if( ret == SatRetValue::CONFLICT ){
+        if( ret.type == SatRetValue::CONFLICT ){
             return ret;
         }
     }
@@ -150,7 +159,7 @@ SatRetValue SatSolver::imply_by(int lit_num, bool set_value){
         set_watched_literals_true(literals[lit_num].neg_watched);
         SatRetValue ret = set_watched_literals_false(literals[lit_num].pos_watched);
 
-        if( ret == SatRetValue::CONFLICT ){
+        if( ret.type == SatRetValue::CONFLICT ){
             return ret;
         }
     }
@@ -169,18 +178,24 @@ SatRetValue SatSolver::imply_by(int lit_num, bool set_value){
                 continue;
             }
             else{
-                return SatRetValue::CONFLICT;
+                return SatRetValue(SatRetValue::CONFLICT, lit);
             }
         }
 
         return imply_by(lit);
     }
 
-    return SatRetValue::NORMAL;
+    return SatRetValue(SatRetValue::NORMAL);
 }
 
 SatRetValue SatSolver::imply_by(LiteralIndex lit_index){
     int number = all_clauses[lit_index.clause_index][lit_index.lit_index_in_clause];
+
+#ifdef DEBUG2
+    std::cerr << "[imply] " << lit_index 
+              << " = " << (number > 0) << std::endl;
+#endif
+
     return imply_by(std::abs(number), number > 0);
 }
 
@@ -210,10 +225,10 @@ SatRetValue SatSolver::set_watched_literals_false(std::vector<LiteralIndex>& wat
             i--;
         }
 
-        if( ret == SatRetValue::CONFLICT ){
+        if( ret.type == SatRetValue::CONFLICT ){
             return ret;
         }
-        else if( ret == SatRetValue::UNIT_CLAUSE ){
+        else if( ret.type == SatRetValue::UNIT_CLAUSE ){
             int clause_index = false_lit.clause_index;
 
             // unit_clause_lit is clause's 2_lit[0] or 2_lit[1]
@@ -226,23 +241,23 @@ SatRetValue SatSolver::set_watched_literals_false(std::vector<LiteralIndex>& wat
         }
     }
 
-    return SatRetValue::NORMAL;
+    return SatRetValue(SatRetValue::NORMAL);
 }
 
 SatRetValue SatSolver::update_literal_row(LiteralIndex literal){
     SatRetValue ret = update_literal(literal.clause_index, 0);
-    if( ret == SatRetValue::NORMAL ){
+    if( ret.type == SatRetValue::NORMAL ){
         return update_literal(literal.clause_index, 1);
     }
-    else if( ret == SatRetValue::CONFLICT ){
+    else if( ret.type == SatRetValue::CONFLICT ){
         return ret;
     }
-    else if( ret == SatRetValue::UNIT_CLAUSE ){
+    else if( ret.type == SatRetValue::UNIT_CLAUSE ){
         return ret;
     }
     else{
         assert("unreachable: update_literal_row\n");
-        return SatRetValue::NORMAL;
+        return SatRetValue(SatRetValue::NORMAL);
     }
 }
 
@@ -267,10 +282,10 @@ SatRetValue SatSolver::update_literal(int clause_index, int clause_2_lit_offset)
     LiteralIndex& another_watched_lit = clause_watched_2_lit[literal.clause_index][1 - clause_2_lit_offset];
 
     if( sat_clauses[clause_index] == true ){
-        return SatRetValue::NORMAL;
+        return SatRetValue(SatRetValue::NORMAL);
     }
     if( literal_truth_in_clause(literal) != BoolVal::FALSE ){
-        return SatRetValue::NORMAL;
+        return SatRetValue(SatRetValue::NORMAL);
     }
 
     std::vector<int>& this_clause = all_clauses[clause_index];
@@ -290,12 +305,12 @@ SatRetValue SatSolver::update_literal(int clause_index, int clause_2_lit_offset)
 
             remove_literal_watch(literal);
             add_literal_watch(clause_index, lit_index, clause_2_lit_offset);
-            return SatRetValue::NORMAL;
+            return SatRetValue(SatRetValue::NORMAL);
         }
         else if( literal_truth_in_clause(clause_index, lit_index) == BoolVal::NOT_ASSIGNED ){
             remove_literal_watch(literal);
             add_literal_watch(clause_index, lit_index, clause_2_lit_offset);
-            return SatRetValue::NORMAL;
+            return SatRetValue(SatRetValue::NORMAL);
         }
     }
     
@@ -307,15 +322,15 @@ SatRetValue SatSolver::update_literal(int clause_index, int clause_2_lit_offset)
 
     if( literal_truth_in_clause(another_watched_lit) == BoolVal::NOT_ASSIGNED ){
         // unit clause
-        return SatRetValue::UNIT_CLAUSE;
+        return SatRetValue(SatRetValue::UNIT_CLAUSE);
     }
     else if( literal_truth_in_clause(another_watched_lit) == BoolVal::FALSE ){
         // conflict
-        return SatRetValue::CONFLICT;
+        return SatRetValue(SatRetValue::CONFLICT, literal);
     }
     else{
         assert("unreachable: update_literal\n");
-        return SatRetValue::NORMAL;
+        return SatRetValue(SatRetValue::NORMAL);
     }
 }
 

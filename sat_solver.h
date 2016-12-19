@@ -22,12 +22,6 @@
 
 using Clause = std::vector<int>;
 
-enum class SatRetValue {
-    NORMAL,
-    UNIT_CLAUSE,
-    CONFLICT,
-};
-
 // BoolVal
 enum class BoolVal {
     NOT_ASSIGNED,
@@ -61,6 +55,11 @@ struct LiteralIndex {
     }
 };
 
+static std::ostream& operator << (std::ostream& os, const LiteralIndex& value){
+    os << "Lit: x" << value.lit_number << " at ";
+    os << "(" << value.clause_index << ", " << value.lit_index_in_clause << ")";
+}
+
 using LiteralIndexPair = std::array<LiteralIndex, 2>;
 
 struct WatchedLiteral {
@@ -79,6 +78,21 @@ struct LiteralDecideNode {
     LiteralDecideNode() : lit_number(-1) {}
     LiteralDecideNode(int lit_number, bool value, int bt_state) : 
       lit_number(lit_number), value(value), bt_state(bt_state) {}
+};
+
+struct SatRetValue {
+    enum SatRetValueType {
+        NORMAL,
+        UNIT_CLAUSE,
+        CONFLICT,
+    };
+
+    SatRetValueType type;
+    LiteralIndex conflict_lit;
+
+    SatRetValue(SatRetValueType type = NORMAL) : type(type) {}
+    SatRetValue(SatRetValueType type, LiteralIndex conflict_lit) : 
+        type(type), conflict_lit(conflict_lit) {}
 };
 
 class SatSolver {
