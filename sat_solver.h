@@ -28,6 +28,7 @@ enum class SatRetValue {
     CONFLICT,
 };
 
+// BoolVal
 enum class BoolVal {
     NOT_ASSIGNED,
     TRUE,
@@ -41,6 +42,7 @@ static BoolVal to_bool_val(bool value){
     if( value == true ) return BoolVal::TRUE;
     return BoolVal::FALSE;
 }
+// BoolVal end
 
 struct LiteralIndex {
     int lit_number;
@@ -95,11 +97,13 @@ public:
 
     void remove_unit_clause_init();
     void add_2_lit_watch_each_clause();
+
     bool DPLL_backtrack();
     SatRetValue imply_by(LiteralIndex lit_index);
     SatRetValue imply_by(int lit_num, bool set_value);
     // conflict();
-
+    void set_watched_literals_true(std::vector<LiteralIndex>& watched_lits);
+    SatRetValue set_watched_literals_false(std::vector<LiteralIndex>& watched_lits);
     SatRetValue update_literal_row(LiteralIndex literal);
     SatRetValue update_literal(int clause_index, int clause_2_lit_offset);
 

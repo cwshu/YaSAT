@@ -126,15 +126,6 @@ SatRetValue SatSolver::imply_by(int lit_num, bool set_value){
     // change value of 2 literal watching => literals[i].pos_watched, clause_watched_2_lit
     // change value of literal value (implication) => literals[i].value
 
-    // set lit = true or false
-    // for each pos_watch_lit or neg_watch_lit == true
-       // the clause is true.
-    // for each pos_watch_lit or neg_watch_lit == false
-       // find_watched_literal_in_clause(literal);
-
-    // while !unit_clause_queue.empty()
-       // imply_by(unit_clause_queue.pop_front())
-
     /*
      * 4 condition of each clause
      * 
@@ -145,95 +136,39 @@ SatRetValue SatSolver::imply_by(int lit_num, bool set_value){
      */
     
     bt_set_literal_value(lit_num, set_value);
+
+    // do implication
     if( set_value == true ){
-        for( const auto& pos_lit_clause: literals[lit_num].pos_watched ){
-            if( sat_clauses[pos_lit_clause.clause_index] == false ){
-                bt_set_clause_sat(pos_lit_clause.clause_index);
-            }
-        }
+        set_watched_literals_true(literals[lit_num].pos_watched);
+        SatRetValue ret = set_watched_literals_false(literals[lit_num].neg_watched);
 
-        int size = literals[lit_num].neg_watched.size();
-        for( int i = 0; i < size; i++ ){
-            // TODO: fix size and i when neg_watched array elements are removed in literal updating.
-
-            // each negative watched literal's clause
-            LiteralIndex& neg_lit_index = literals[lit_num].neg_watched[i];
-            SatRetValue ret = update_literal_row(neg_lit_index);
-
-            // HACK:
-            if( literals[lit_num].neg_watched.size() != size ){
-                size--;
-                i--;
-            }
-
-            if( ret == SatRetValue::CONFLICT ){
-                return ret;
-            }
-            else if( ret == SatRetValue::UNIT_CLAUSE ){
-                int clause_index = neg_lit_index.clause_index;
-
-                LiteralIndex unit_clause_index = clause_watched_2_lit[clause_index][0];
-                if( literal_truth_in_clause(unit_clause_index) != BoolVal::NOT_ASSIGNED ){
-                    unit_clause_index = clause_watched_2_lit[clause_index][1];
-                }
-
-                unit_clause_queue.push_back(unit_clause_index);
-            }
+        if( ret == SatRetValue::CONFLICT ){
+            return ret;
         }
     }
     else{
-        for( const auto& neg_lit_clause: literals[lit_num].neg_watched ){
-            if( sat_clauses[neg_lit_clause.clause_index] == false ){
-                bt_set_clause_sat(neg_lit_clause.clause_index);
-            }
-        }
+        set_watched_literals_true(literals[lit_num].neg_watched);
+        SatRetValue ret = set_watched_literals_false(literals[lit_num].pos_watched);
 
-        int size = literals[lit_num].pos_watched.size();
-        for( int i = 0; i < size; i++ ){
-            // TODO: fix size and i when pos_watched array elements are removed in literal updating.
-
-            // each positive watched literal's clause
-            LiteralIndex& pos_lit_index = literals[lit_num].pos_watched[i];
-            SatRetValue ret = update_literal_row(pos_lit_index);
-            
-            // HACK:
-            if( literals[lit_num].pos_watched.size() != size ){
-                size--;
-                i--;
-            }
-
-            if( ret == SatRetValue::CONFLICT ){
-                return ret;
-            }
-            else if( ret == SatRetValue::UNIT_CLAUSE ){
-                // TODO: clear logic
-                // [default] unit_clause literal index = positive literal index
-                // [if positive literal index isn't NOT_ASSIGNED] unit_clause literal index = another watched literal in clause
-                int clause_index = pos_lit_index.clause_index;
-
-                LiteralIndex unit_clause_lit_index = clause_watched_2_lit[clause_index][0];
-                if( literal_truth_in_clause(unit_clause_lit_index) != BoolVal::NOT_ASSIGNED ){
-                    unit_clause_lit_index = clause_watched_2_lit[clause_index][1];
-                }
-
-                unit_clause_queue.push_back(unit_clause_lit_index);
-            }
+        if( ret == SatRetValue::CONFLICT ){
+            return ret;
         }
     }
-    
+     
+    // if unit clause exist, imply_by() again
     while( !unit_clause_queue.empty() ){
         LiteralIndex lit = unit_clause_queue.front();
         unit_clause_queue.pop_front();
 
         if( literals[lit.lit_number].value != BoolVal::NOT_ASSIGNED ){
             // if literal is ASSIGNED by previous unit clause:
+                // if assigned literal cause a truth clause, then drop it.
+                // else, it's conflict.
             
             if( literal_truth_in_clause(lit) == BoolVal::TRUE ){
-                // if assigned literal cause a truth clause, then drop it.
                 continue;
             }
             else{
-                // else, it's conflict.
                 return SatRetValue::CONFLICT;
             }
         }
@@ -247,6 +182,51 @@ SatRetValue SatSolver::imply_by(int lit_num, bool set_value){
 SatRetValue SatSolver::imply_by(LiteralIndex lit_index){
     int number = all_clauses[lit_index.clause_index][lit_index.lit_index_in_clause];
     return imply_by(std::abs(number), number > 0);
+}
+
+void SatSolver::set_watched_literals_true(std::vector<LiteralIndex>& watched_lits){
+    /* set the value of all watched literal to true */
+
+    for( const auto& lit_clause: watched_lits ){
+        if( sat_clauses[lit_clause.clause_index] == false ){
+            bt_set_clause_sat(lit_clause.clause_index);
+        }
+    }
+    return;
+}
+
+SatRetValue SatSolver::set_watched_literals_false(std::vector<LiteralIndex>& watched_lits){
+    /* set the value of all watched literal to false, sometimes it cause Unit clause or Conflict clause */
+
+    int size = watched_lits.size();
+    for( int i = 0; i < size; i++ ){
+        // each watched literal's clause
+        LiteralIndex& false_lit = watched_lits[i];
+        SatRetValue ret = update_literal_row(false_lit);
+
+        // HACK: fix size and i when watched_lits array elements are removed in literal updating.
+        if( watched_lits.size() != size ){
+            size--;
+            i--;
+        }
+
+        if( ret == SatRetValue::CONFLICT ){
+            return ret;
+        }
+        else if( ret == SatRetValue::UNIT_CLAUSE ){
+            int clause_index = false_lit.clause_index;
+
+            // unit_clause_lit is clause's 2_lit[0] or 2_lit[1]
+            LiteralIndex unit_clause_lit = clause_watched_2_lit[clause_index][0];
+            if( literal_truth_in_clause(unit_clause_lit) != BoolVal::NOT_ASSIGNED ){
+                unit_clause_lit = clause_watched_2_lit[clause_index][1];
+            }
+
+            unit_clause_queue.push_back(unit_clause_lit);
+        }
+    }
+
+    return SatRetValue::NORMAL;
 }
 
 SatRetValue SatSolver::update_literal_row(LiteralIndex literal){
