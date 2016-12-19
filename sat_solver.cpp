@@ -313,12 +313,6 @@ SatRetValue SatSolver::update_literal(int clause_index, int clause_2_lit_offset)
             return SatRetValue(SatRetValue::NORMAL);
         }
     }
-    
-    if( last_false_lit_index != -1 ){
-        // move literal to end;
-        remove_literal_watch(literal);
-        add_literal_watch(clause_index, last_false_lit_index, clause_2_lit_offset);
-    }
 
     if( literal_truth_in_clause(another_watched_lit) == BoolVal::NOT_ASSIGNED ){
         // unit clause
